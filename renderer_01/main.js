@@ -3,7 +3,7 @@ var Renderer = new Object();
 
 Renderer.loadMatrix = function(gl, stack)
 {
-  gl.uniformMatrix4fv(this.uniformShader.uModelViewMatrixLocation, false, stack.matrix);
+  gl.uniformMatrix4fv(this.uniformShader.uModelMatrixLocation, false, stack.matrix);
 }
 
 Renderer.initializeCar = function(gl) 
@@ -116,6 +116,11 @@ ChaseCamera = function()
     glMatrix.vec3.transformMat4(this.camera_pos, [0, 4, 10], car_frame);
   }
 
+  this.view_direction = function()
+  {
+    return glMatrix.vec3.normalize( glMatrix.vec3.create(), glMatrix.vec3.sub(glMatrix.vec3.create(), this.camera_pos, this.center) );
+  }
+
   this.matrix = function()
   {
     return glMatrix.mat4.lookAt(glMatrix.mat4.create(), this.camera_pos, this.center, [0, 1, 0]);	
@@ -129,6 +134,11 @@ FollowFromUpCamera = function()
   this.update = function(car_position, car_direction, car_frame)
   {
     this.pos = car_position;
+  }
+  
+  this.view_direction = function()
+  {
+    return [0, -1, 0];
   }
 
   this.matrix = function()
@@ -194,12 +204,14 @@ Renderer.drawObject = function (gl, obj, fillColor, lineColor) {
   gl.polygonOffset(1.0, 1.0);
 
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, obj.indexBufferTriangles);
-  gl.uniform4fv(this.uniformShader.uColorLocation, fillColor);
+  gl.uniform4fv(this.uniformShader.uDiffuseColorLocation, fillColor);
+  gl.uniform4fv(this.uniformShader.uSunColorLocation, [ 1, 1, 1, 1 ]);
   gl.drawElements(gl.TRIANGLES, obj.triangleIndices.length, gl.UNSIGNED_SHORT, 0);
 
   gl.disable(gl.POLYGON_OFFSET_FILL);
   
-  gl.uniform4fv(this.uniformShader.uColorLocation, lineColor);
+  gl.uniform4fv(this.uniformShader.uDiffuseColorLocation, lineColor);
+  gl.uniform4fv(this.uniformShader.uSunColorLocation, [ 0, 0, 0, 1 ]);
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, obj.indexBufferEdges);
   gl.drawElements(gl.LINES, obj.numTriangles * 3 * 2, gl.UNSIGNED_SHORT, 0);
 
@@ -240,26 +252,31 @@ Renderer.drawScene = function (gl) {
 
 
   gl.useProgram(this.uniformShader);
+  gl.uniform3fv(
+    this.uniformShader.uSunDirectionLocation,
+    glMatrix.vec3.normalize(glMatrix.vec3.create(), Game.scene.weather.sunLightDirection)
+  );
   
-  gl.uniformMatrix4fv(this.uniformShader.uProjectionMatrixLocation,     false,glMatrix.mat4.perspective(glMatrix.mat4.create(),3.14 / 4, ratio, 1, 500));
+  gl.uniformMatrix4fv(this.uniformShader.uProjectionMatrixLocation, false, glMatrix.mat4.perspective(glMatrix.mat4.create(),3.14 / 4, ratio, 1, 500));
 
   Renderer.cameras[Renderer.currentCamera].update(this.car.position, this.car.direction, this.car.frame);
   var invV = Renderer.cameras[Renderer.currentCamera].matrix();
+  var view = Renderer.cameras[Renderer.currentCamera].view_direction();
+  gl.uniform3fv(this.uniformShader.uViewDirectionLocation, view);
+  gl.uniformMatrix4fv(this.uniformShader.uViewMatrixLocation, false, invV);
   
   // initialize the stack with the identity
   stack.loadIdentity();
-  // multiply by the view matrix
-  stack.multiply(invV);
 
   // drawing the car
-   stack.push();
+  stack.push();
 
   stack.multiply(this.car.frame);
-  gl.uniformMatrix4fv(this.uniformShader.uModelViewMatrixLocation, false, stack.matrix);
+  gl.uniformMatrix4fv(this.uniformShader.uModelMatrixLocation, false, stack.matrix);
   this.drawCar(gl, stack);
   stack.pop();
 
-  gl.uniformMatrix4fv(this.uniformShader.uModelViewMatrixLocation, false, stack.matrix);
+  gl.uniformMatrix4fv(this.uniformShader.uModelMatrixLocation, false, stack.matrix);
 
   // drawing the static elements (ground, track and buldings)
 	this.drawObject(gl, Game.scene.groundObj, [0.3, 0.7, 0.2, 1.0], [0, 0, 0, 1.0]);
@@ -283,6 +300,7 @@ Renderer.setupAndStart = function () {
   
  /* get the webgl context */
 	Renderer.gl = Renderer.canvas.getContext("webgl");
+  Renderer.gl.getExtension('OES_standard_derivatives');
 
   /* read the webgl version and log */
 	var gl_version = Renderer.gl.getParameter(Renderer.gl.VERSION); 
