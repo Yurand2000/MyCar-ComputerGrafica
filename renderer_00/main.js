@@ -1,35 +1,112 @@
+/* the main object to be implementd */
+var Renderer = new Object();
 
+Renderer.loadMatrix = function(gl, stack)
+{
+  gl.uniformMatrix4fv(this.uniformShader.uModelViewMatrixLocation, false, stack.matrix);
+}
 
+Renderer.initializeCar = function(gl) 
+{
+  Renderer.car_frame = new Cube();
+  Renderer.createObjectBuffers(gl, this.car_frame);
+  Renderer.car_frame_transform = glMatrix.mat4.create();
+  glMatrix.mat4.translate(Renderer.car_frame_transform, Renderer.car_frame_transform, [0, 0.75, 0]);
+  glMatrix.mat4.scale(Renderer.car_frame_transform, Renderer.car_frame_transform, [0.5, 0.5, 0.5]);
+  glMatrix.mat4.scale(Renderer.car_frame_transform, Renderer.car_frame_transform, [2, 1, 4]);
 
+  Renderer.car_wheel = new Cylinder(16);
+  Renderer.createObjectBuffers(gl, this.car_wheel);
+  var car_wheel_transform = glMatrix.mat4.create();
+  glMatrix.mat4.translate(car_wheel_transform, car_wheel_transform, [0.1, 0, 0]);
+  glMatrix.mat4.rotateZ(car_wheel_transform, car_wheel_transform, glMatrix.glMatrix.toRadian(90));
+  glMatrix.mat4.scale(car_wheel_transform, car_wheel_transform, [0.3, 0.1, 0.3]);
 
-/*
-the FollowFromUpCamera always look at the car from a position abova right over the car
-*/
-FollowFromUpCamera = function(){
+  Renderer.car_wheel_transform_fl = glMatrix.mat4.fromTranslation(glMatrix.mat4.create(), [-1, 0.3, 1.5]);
+  glMatrix.mat4.mul(Renderer.car_wheel_transform_fl, Renderer.car_wheel_transform_fl, car_wheel_transform);
+  Renderer.car_wheel_transform_fr = glMatrix.mat4.fromTranslation(glMatrix.mat4.create(), [1, 0.3, 1.5]);
+  glMatrix.mat4.mul(Renderer.car_wheel_transform_fr, Renderer.car_wheel_transform_fr, car_wheel_transform);
+  Renderer.car_wheel_transform_bl = glMatrix.mat4.fromTranslation(glMatrix.mat4.create(), [-1, 0.3, -1.5]);
+  glMatrix.mat4.mul(Renderer.car_wheel_transform_bl, Renderer.car_wheel_transform_bl, car_wheel_transform);
+  Renderer.car_wheel_transform_br = glMatrix.mat4.fromTranslation(glMatrix.mat4.create(), [1, 0.3, -1.5]);
+  glMatrix.mat4.mul(Renderer.car_wheel_transform_br, Renderer.car_wheel_transform_br, car_wheel_transform);
+}
 
-  /* the only data it needs is the position of the camera */
+Renderer.drawCar = function (gl, stack)
+{
+  stack.push();
+  stack.multiply(this.car_frame_transform);
+  Renderer.loadMatrix(gl, stack);
+  this.drawObject(gl, this.car_frame, [0.2, 0.2, 1, 1], [0, 0, 0, 1]);
+  stack.pop();
+
+  stack.push();
+  stack.multiply(this.car_wheel_transform_fl);
+  Renderer.loadMatrix(gl, stack);
+  this.drawObject(gl, this.car_wheel, [0.2, 0.2, 0.2, 1], [0, 0, 0, 1]);
+  stack.pop();
+
+  stack.push();
+  stack.multiply(this.car_wheel_transform_fr);
+  Renderer.loadMatrix(gl, stack);
+  this.drawObject(gl, this.car_wheel, [0.2, 0.2, 0.2, 1], [0, 0, 0, 1]);
+  stack.pop();
+
+  stack.push();
+  stack.multiply(this.car_wheel_transform_bl);
+  Renderer.loadMatrix(gl, stack);
+  this.drawObject(gl, this.car_wheel, [0.2, 0.2, 0.2, 1], [0, 0, 0, 1]);
+  stack.pop();
+
+  stack.push();
+  stack.multiply(this.car_wheel_transform_br);
+  Renderer.loadMatrix(gl, stack);
+  this.drawObject(gl, this.car_wheel, [0.2, 0.2, 0.2, 1], [0, 0, 0, 1]);
+  stack.pop();
+};
+
+ChaseCamera = function()
+{
+  this.center = [0,0,0];
+  this.camera_pos = [0,0,0];
+  
+  this.update = function(car_position, car_direction, car_frame)
+  {
+    glMatrix.vec3.transformMat4(this.center, [0, 1.5, 0], car_frame);
+    glMatrix.vec3.transformMat4(this.camera_pos, [0, 4, 10], car_frame);
+  }
+
+  this.matrix = function()
+  {
+    return glMatrix.mat4.lookAt(glMatrix.mat4.create(), this.camera_pos, this.center, [0, 1, 0]);	
+  }
+}
+
+FollowFromUpCamera = function()
+{
   this.pos = [0,0,0];
   
-  /* update the camera with the current car position */
-  this.update = function(car_position){
+  this.update = function(car_position, car_direction, car_frame)
+  {
     this.pos = car_position;
   }
 
-  /* return the transformation matrix to transform from worlod coordiantes to the view reference frame */
-  this.matrix = function(){
+  this.matrix = function()
+  {
     return glMatrix.mat4.lookAt(glMatrix.mat4.create(),[ this.pos[0],50, this.pos[2]], this.pos,[0, 0, -1]);	
   }
 }
 
-/* the main object to be implementd */
-var Renderer = new Object();
+update_camera = function(camera_name)
+{
+  Renderer.currentCamera = camera_name;
+}
 
-/* array of cameras that will be used */
-Renderer.cameras = [];
-// add a FollowFromUpCamera
-Renderer.cameras.push(new FollowFromUpCamera());
-// set the camera currently in use
-Renderer.currentCamera = 0;
+/* dictionary of cameras that will be used */
+Renderer.cameras = {};
+Renderer.cameras["FollowFromUp"] = new FollowFromUpCamera();
+Renderer.cameras["Chase"] = new ChaseCamera();
+Renderer.currentCamera = "Chase";
 
 /*
 create the buffers for an object as specified in common/shapes/triangle.js
@@ -97,20 +174,12 @@ initialize the object in the scene
 Renderer.initializeObjects = function (gl) {
   Game.setScene(scene_0);
   this.car = Game.addCar("mycar");
-  Renderer.triangle = new Triangle();
-  Renderer.createObjectBuffers(gl, this.triangle);
+  Renderer.initializeCar(gl);
 
   Renderer.createObjectBuffers(gl,Game.scene.trackObj);
   Renderer.createObjectBuffers(gl,Game.scene.groundObj);
   for (var i = 0; i < Game.scene.buildings.length; ++i) 
 	  	Renderer.createObjectBuffers(gl,Game.scene.buildingsObj[i]);
-};
-
-/*
-draw the car
-*/
-Renderer.drawCar = function (gl) {
-  this.drawObject(gl, this.triangle, [1, 1, 1, 1], [1, 1, 1, 1]);
 };
 
 
@@ -134,7 +203,7 @@ Renderer.drawScene = function (gl) {
   
   gl.uniformMatrix4fv(this.uniformShader.uProjectionMatrixLocation,     false,glMatrix.mat4.perspective(glMatrix.mat4.create(),3.14 / 4, ratio, 1, 500));
 
-  Renderer.cameras[Renderer.currentCamera].update(this.car.position);
+  Renderer.cameras[Renderer.currentCamera].update(this.car.position, this.car.direction, this.car.frame);
   var invV = Renderer.cameras[Renderer.currentCamera].matrix();
   
   // initialize the stack with the identity
@@ -147,7 +216,7 @@ Renderer.drawScene = function (gl) {
 
   stack.multiply(this.car.frame);
   gl.uniformMatrix4fv(this.uniformShader.uModelViewMatrixLocation, false, stack.matrix);
-  this.drawCar(gl);
+  this.drawCar(gl, stack);
   stack.pop();
 
   gl.uniformMatrix4fv(this.uniformShader.uModelViewMatrixLocation, false, stack.matrix);
