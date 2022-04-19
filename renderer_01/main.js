@@ -9,27 +9,33 @@ Renderer.loadMatrix = function(gl, stack)
 Renderer.initializeCar = function(gl) 
 {
   Renderer.car_frame = new Cube();
+  Renderer.rotation_angle = 0;
   Renderer.createObjectBuffers(gl, this.car_frame);
   Renderer.car_frame_transform = glMatrix.mat4.create();
-  glMatrix.mat4.translate(Renderer.car_frame_transform, Renderer.car_frame_transform, [0, 0.75, 0]);
-  glMatrix.mat4.scale(Renderer.car_frame_transform, Renderer.car_frame_transform, [0.5, 0.5, 0.5]);
-  glMatrix.mat4.scale(Renderer.car_frame_transform, Renderer.car_frame_transform, [2, 1, 4]);
+  glMatrix.mat4.translate(Renderer.car_frame_transform, Renderer.car_frame_transform, [0, 0.2, 0]);
+  glMatrix.mat4.scale(Renderer.car_frame_transform, Renderer.car_frame_transform, [2, 0.5, 4]);
+  glMatrix.mat4.translate(Renderer.car_frame_transform, Renderer.car_frame_transform, [0, 0.5, 0]);
+  glMatrix.mat4.scale(Renderer.car_frame_transform, Renderer.car_frame_transform, [0.5, 0.5, 0.5]); //set the cube side length to 1
 
   Renderer.car_wheel = new Cylinder(16);
   Renderer.createObjectBuffers(gl, this.car_wheel);
-  var car_wheel_transform = glMatrix.mat4.create();
-  glMatrix.mat4.translate(car_wheel_transform, car_wheel_transform, [0.1, 0, 0]);
-  glMatrix.mat4.rotateZ(car_wheel_transform, car_wheel_transform, glMatrix.glMatrix.toRadian(90));
-  glMatrix.mat4.scale(car_wheel_transform, car_wheel_transform, [0.3, 0.1, 0.3]);
+  var car_wheel_translation = glMatrix.mat4.create();
+  glMatrix.mat4.translate(car_wheel_translation, car_wheel_translation, [0.15, 0, 0]);
 
-  Renderer.car_wheel_transform_fl = glMatrix.mat4.fromTranslation(glMatrix.mat4.create(), [-1, 0.3, -1.5]);
-  glMatrix.mat4.mul(Renderer.car_wheel_transform_fl, Renderer.car_wheel_transform_fl, car_wheel_transform);
-  Renderer.car_wheel_transform_fr = glMatrix.mat4.fromTranslation(glMatrix.mat4.create(), [1, 0.3, -1.5]);
-  glMatrix.mat4.mul(Renderer.car_wheel_transform_fr, Renderer.car_wheel_transform_fr, car_wheel_transform);
-  Renderer.car_wheel_transform_bl = glMatrix.mat4.fromTranslation(glMatrix.mat4.create(), [-1, 0.3, 1.5]);
-  glMatrix.mat4.mul(Renderer.car_wheel_transform_bl, Renderer.car_wheel_transform_bl, car_wheel_transform);
-  Renderer.car_wheel_transform_br = glMatrix.mat4.fromTranslation(glMatrix.mat4.create(), [1, 0.3, 1.5]);
-  glMatrix.mat4.mul(Renderer.car_wheel_transform_br, Renderer.car_wheel_transform_br, car_wheel_transform);
+  Renderer.car_wheel_transform = glMatrix.mat4.create();
+  Renderer.car_wheel_radius = 0.3;
+  glMatrix.mat4.rotateZ(Renderer.car_wheel_transform, Renderer.car_wheel_transform, glMatrix.glMatrix.toRadian(90));
+  glMatrix.mat4.scale(Renderer.car_wheel_transform, Renderer.car_wheel_transform, [Renderer.car_wheel_radius, 0.3, Renderer.car_wheel_radius]);
+  glMatrix.mat4.scale(Renderer.car_wheel_transform, Renderer.car_wheel_transform, [1, 0.5, 1]); //set the cilinder height and radius to 1
+
+  Renderer.car_wheel_translation_fl = glMatrix.mat4.fromTranslation(glMatrix.mat4.create(), [-1, 0.3, -1.5]);
+  glMatrix.mat4.mul(Renderer.car_wheel_translation_fl, Renderer.car_wheel_translation_fl, car_wheel_translation);
+  Renderer.car_wheel_translation_fr = glMatrix.mat4.fromTranslation(glMatrix.mat4.create(), [1, 0.3, -1.5]);
+  glMatrix.mat4.mul(Renderer.car_wheel_translation_fr, Renderer.car_wheel_translation_fr, car_wheel_translation);
+  Renderer.car_wheel_translation_bl = glMatrix.mat4.fromTranslation(glMatrix.mat4.create(), [-1, 0.3, 1.5]);
+  glMatrix.mat4.mul(Renderer.car_wheel_translation_bl, Renderer.car_wheel_translation_bl, car_wheel_translation);
+  Renderer.car_wheel_translation_br = glMatrix.mat4.fromTranslation(glMatrix.mat4.create(), [1, 0.3, 1.5]);
+  glMatrix.mat4.mul(Renderer.car_wheel_translation_br, Renderer.car_wheel_translation_br, car_wheel_translation);
 }
 
 Renderer.drawCar = function (gl, stack)
@@ -40,28 +46,62 @@ Renderer.drawCar = function (gl, stack)
   this.drawObject(gl, this.car_frame, [0.2, 0.2, 1, 1], [0, 0, 0, 1]);
   stack.pop();
 
+  var speed = Renderer.car.speed;
+  var circumference = Renderer.car_wheel_radius * 2 * 3.1415;
+  Renderer.rotation_angle = Renderer.rotation_angle + (speed / circumference);
+  var car_wheel_speed = glMatrix.mat4.fromXRotation(glMatrix.mat4.create(), -Renderer.rotation_angle);
+  var steering_angle = Renderer.car.wheelsAngle;
+  var car_wheel_rotation_and_speed = glMatrix.mat4.fromYRotation(glMatrix.mat4.create(), steering_angle);
+  glMatrix.mat4.mul(car_wheel_rotation_and_speed, car_wheel_rotation_and_speed, car_wheel_speed);
+
   stack.push();
-  stack.multiply(this.car_wheel_transform_fl);
+  stack.multiply(this.car_wheel_translation_fl);
+  stack.push();
+  stack.multiply(car_wheel_rotation_and_speed);
+  stack.push();
+  stack.multiply(this.car_wheel_transform);
   Renderer.loadMatrix(gl, stack);
   this.drawObject(gl, this.car_wheel, [0.2, 0.2, 0.2, 1], [0, 0, 0, 1]);
   stack.pop();
-
-  stack.push();
-  stack.multiply(this.car_wheel_transform_fr);
-  Renderer.loadMatrix(gl, stack);
-  this.drawObject(gl, this.car_wheel, [0.2, 0.2, 0.2, 1], [0, 0, 0, 1]);
+  stack.pop();
   stack.pop();
 
   stack.push();
-  stack.multiply(this.car_wheel_transform_bl);
+  stack.multiply(this.car_wheel_translation_fr);
+  stack.push();
+  stack.multiply(car_wheel_rotation_and_speed);
+  stack.push();
+  stack.multiply(this.car_wheel_transform);
   Renderer.loadMatrix(gl, stack);
   this.drawObject(gl, this.car_wheel, [0.2, 0.2, 0.2, 1], [0, 0, 0, 1]);
   stack.pop();
+  stack.pop();
+  stack.pop();
+
+
 
   stack.push();
-  stack.multiply(this.car_wheel_transform_br);
+  stack.multiply(this.car_wheel_translation_bl);
+  stack.push();
+  stack.multiply(car_wheel_speed);
+  stack.push();
+  stack.multiply(this.car_wheel_transform);
   Renderer.loadMatrix(gl, stack);
   this.drawObject(gl, this.car_wheel, [0.2, 0.2, 0.2, 1], [0, 0, 0, 1]);
+  stack.pop();
+  stack.pop();
+  stack.pop();
+
+  stack.push();
+  stack.multiply(this.car_wheel_translation_br);
+  stack.push();
+  stack.multiply(car_wheel_speed);
+  stack.push();
+  stack.multiply(this.car_wheel_transform);
+  Renderer.loadMatrix(gl, stack);
+  this.drawObject(gl, this.car_wheel, [0.2, 0.2, 0.2, 1], [0, 0, 0, 1]);
+  stack.pop();
+  stack.pop();
   stack.pop();
 };
 
