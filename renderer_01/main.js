@@ -158,6 +158,56 @@ Renderer.cameras["FollowFromUp"] = new FollowFromUpCamera();
 Renderer.cameras["Chase"] = new ChaseCamera();
 Renderer.currentCamera = "Chase";
 
+Renderer.loadClosestLights = function(gl, modelMatrix)
+{
+  /*var min_distances = [ Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE ];
+  var min_lamps = [ null, null, null, null ];
+
+  var position = glMatrix.mat4.getTranslation(glMatrix.vec3.create(), modelMatrix);
+  for(var i = 0; i < Game.scene.lamps.length; i++)
+  {
+    var lampPosition = glMatrix.vec3.clone(Game.scene.lamps[i].position);
+    lampPosition[1] = lampPosition[1] + Game.scene.lamps[i].height;
+    var distance = glMatrix.vec3.squaredLength( glMatrix.vec3.sub(glMatrix.vec3.create(), lampPosition, position) );
+
+    var min_pos = 4;
+    if(distance < min_distances[3])
+    {
+      min_pos = 3;
+    }
+    if(distance < min_distances[2])
+    {
+      min_distances[3] = min_distances[2];
+      min_lamps[3] = min_lamps[2];
+      min_pos = 2;
+    }
+    if(distance < min_distances[1])
+    {
+      min_distances[2] = min_distances[1];
+      min_lamps[2] = min_lamps[1];
+      min_pos = 1;
+    }
+    if(distance < min_distances[1])
+    {
+      min_distances[1] = min_distances[0];
+      min_lamps[1] = min_lamps[0];
+      min_pos = 0;
+    }
+    if(min_pos < 4)
+    {
+      min_distances[min_pos] = distance;
+      min_lamps[min_pos] = glMatrix.vec3.clone(lampPosition);
+    }
+  }*/
+
+  for(var i = 0; i < Game.scene.lamps.length; i++)
+  {
+    var lampPosition = glMatrix.vec3.clone(Game.scene.lamps[i].position);
+    lampPosition[1] = lampPosition[1] + Game.scene.lamps[i].height;
+    gl.uniform3fv(this.uniformShader.uSpotLightLocation[i].position, lampPosition);
+  }
+}
+
 /*
 create the buffers for an object as specified in common/shapes/triangle.js
 */
@@ -204,15 +254,19 @@ Renderer.drawObject = function (gl, obj, fillColor, lineColor) {
   gl.polygonOffset(1.0, 1.0);
 
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, obj.indexBufferTriangles);
-  gl.uniform4fv(this.uniformShader.uDiffuseColorLocation, fillColor);
-  gl.uniform4fv(this.uniformShader.uSunColorLocation, [ 1, 1, 1, 1 ]);
+  gl.uniform4fv(this.uniformShader.uMaterialLocation.diffuseColor, fillColor);
+  gl.uniform1f(this.uniformShader.uSunLocation.intensity, 1.0);
+  for(var i = 0; i < Game.scene.lamps.length; i++)
+    gl.uniform1f(this.uniformShader.uSpotLightLocation[i].intensity, 10);
   gl.drawElements(gl.TRIANGLES, obj.triangleIndices.length, gl.UNSIGNED_SHORT, 0);
 
   gl.disable(gl.POLYGON_OFFSET_FILL);
   
-  gl.uniform4fv(this.uniformShader.uDiffuseColorLocation, lineColor);
-  gl.uniform4fv(this.uniformShader.uSunColorLocation, [ 0, 0, 0, 1 ]);
+  gl.uniform4fv(this.uniformShader.uMaterialLocation.diffuseColor, lineColor);
+  gl.uniform1f(this.uniformShader.uSunLocation.intensity, 0.0);
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, obj.indexBufferEdges);
+  for(var i = 0; i < Game.scene.lamps.length; i++)
+    gl.uniform1f(this.uniformShader.uSpotLightLocation[i].intensity, 0);
   gl.drawElements(gl.LINES, obj.numTriangles * 3 * 2, gl.UNSIGNED_SHORT, 0);
 
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
@@ -253,7 +307,7 @@ Renderer.drawScene = function (gl) {
 
   gl.useProgram(this.uniformShader);
   gl.uniform3fv(
-    this.uniformShader.uSunDirectionLocation,
+    this.uniformShader.uSunLocation.direction,
     glMatrix.vec3.normalize(glMatrix.vec3.create(), Game.scene.weather.sunLightDirection)
   );
   
@@ -273,9 +327,11 @@ Renderer.drawScene = function (gl) {
 
   stack.multiply(this.car.frame);
   gl.uniformMatrix4fv(this.uniformShader.uModelMatrixLocation, false, stack.matrix);
+  Renderer.loadClosestLights(gl, stack.matrix);
   this.drawCar(gl, stack);
   stack.pop();
 
+  Renderer.loadClosestLights(gl, stack.matrix);
   gl.uniformMatrix4fv(this.uniformShader.uModelMatrixLocation, false, stack.matrix);
 
   // drawing the static elements (ground, track and buldings)
