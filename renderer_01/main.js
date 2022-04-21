@@ -158,48 +158,8 @@ Renderer.cameras["FollowFromUp"] = new FollowFromUpCamera();
 Renderer.cameras["Chase"] = new ChaseCamera();
 Renderer.currentCamera = "Chase";
 
-Renderer.loadClosestLights = function(gl, modelMatrix)
+Renderer.loadLights = function(gl)
 {
-  /*var min_distances = [ Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE ];
-  var min_lamps = [ null, null, null, null ];
-
-  var position = glMatrix.mat4.getTranslation(glMatrix.vec3.create(), modelMatrix);
-  for(var i = 0; i < Game.scene.lamps.length; i++)
-  {
-    var lampPosition = glMatrix.vec3.clone(Game.scene.lamps[i].position);
-    lampPosition[1] = lampPosition[1] + Game.scene.lamps[i].height;
-    var distance = glMatrix.vec3.squaredLength( glMatrix.vec3.sub(glMatrix.vec3.create(), lampPosition, position) );
-
-    var min_pos = 4;
-    if(distance < min_distances[3])
-    {
-      min_pos = 3;
-    }
-    if(distance < min_distances[2])
-    {
-      min_distances[3] = min_distances[2];
-      min_lamps[3] = min_lamps[2];
-      min_pos = 2;
-    }
-    if(distance < min_distances[1])
-    {
-      min_distances[2] = min_distances[1];
-      min_lamps[2] = min_lamps[1];
-      min_pos = 1;
-    }
-    if(distance < min_distances[1])
-    {
-      min_distances[1] = min_distances[0];
-      min_lamps[1] = min_lamps[0];
-      min_pos = 0;
-    }
-    if(min_pos < 4)
-    {
-      min_distances[min_pos] = distance;
-      min_lamps[min_pos] = glMatrix.vec3.clone(lampPosition);
-    }
-  }*/
-
   for(var i = 0; i < Game.scene.lamps.length; i++)
   {
     var lampPosition = glMatrix.vec3.clone(Game.scene.lamps[i].position);
@@ -327,11 +287,9 @@ Renderer.drawScene = function (gl) {
 
   stack.multiply(this.car.frame);
   gl.uniformMatrix4fv(this.uniformShader.uModelMatrixLocation, false, stack.matrix);
-  Renderer.loadClosestLights(gl, stack.matrix);
   this.drawCar(gl, stack);
   stack.pop();
 
-  Renderer.loadClosestLights(gl, stack.matrix);
   gl.uniformMatrix4fv(this.uniformShader.uModelMatrixLocation, false, stack.matrix);
 
   // drawing the static elements (ground, track and buldings)
@@ -372,6 +330,10 @@ Renderer.setupAndStart = function () {
 
   /* create the shader */
   Renderer.uniformShader = new uniformShader(Renderer.gl);
+
+  Renderer.gl.useProgram(Renderer.uniformShader);
+  Renderer.loadLights(Renderer.gl);
+  Renderer.gl.useProgram(null);
 
   /*
   add listeners for the mouse / keyboard events

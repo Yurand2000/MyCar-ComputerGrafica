@@ -61,13 +61,13 @@ struct spotLight
 
 varying vec3 vWorldPos;
 
-const int pointLightCount = 12;
+const int pointLightCount = 0;
 const int spotLightCount = 12;
 
 uniform material uMaterial;
 uniform vec4 uAmbientColor;
 uniform sunLight uSunLight;
-uniform pointLight uPointLights[pointLightCount];
+//uniform pointLight uPointLights[pointLightCount];
 uniform spotLight uSpotLights[spotLightCount];
 uniform vec3 uViewDirection;
 
@@ -154,13 +154,13 @@ void main(void)
     vec4 ambientColor = vec4(uAmbientColor.xyz * uMaterial.diffuseColor.xyz, 1.0);
     vec4 emissiveColor = vec4(uMaterial.emissiveColor.xyz, 1.0);
 
-    vec4 sunColor = computeSunColor(currNormal, uSunLight.direction, uSunLight.color, uSunLight.intensity);
+    vec4 lightColorSum = computeSunColor(currNormal, uSunLight.direction, uSunLight.color, uSunLight.intensity);
 
-    vec4 lightColorSum = vec4(0.0);
-    for(int i = 0; i < pointLightCount; i++)
+    /*for(int i = 0; i < pointLightCount; i++)
     {
         lightColorSum = lightColorSum + computePointColor(currNormal, uPointLights[i].position, uPointLights[i].color, uPointLights[i].intensity);
-    }
+    }*/
+
     for(int i = 0; i < spotLightCount; i++)
     {
         lightColorSum = lightColorSum + computeSpotColor(currNormal,
@@ -168,7 +168,7 @@ void main(void)
             uSpotLights[i].openingAngle, uSpotLights[i].cutoffAngle, uSpotLights[i].strength);
     }
 
-    vec4 outColor = clamp( ambientColor + sunColor + lightColorSum + emissiveColor, 0.0, 1.0 );
+    vec4 outColor = clamp( ambientColor + lightColorSum + emissiveColor, 0.0, 1.0 );
     gl_FragColor = outColor;
 }
 `;
