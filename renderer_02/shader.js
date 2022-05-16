@@ -87,6 +87,10 @@ uniformShader = function (gl)
     shaderProgram.uSpotLightLocation[i].strength = gl.getUniformLocation(shaderProgram, "uSpotLights[" + i + "].strength");
   }
 
+  //car headlights uniforms
+  shaderProgram.uHeadlightTexture = gl.getUniformLocation(shaderProgram, "uHeadlightTexture");
+  shaderProgram.uLeftHeadlightMatrix = gl.getUniformLocation(shaderProgram, "uLeftHeadlightMatrix");
+  shaderProgram.uRightHeadlightMatrix = gl.getUniformLocation(shaderProgram, "uRightHeadlightMatrix");
 
   //set defaults
   gl.useProgram(shaderProgram);
@@ -125,6 +129,9 @@ uniformShader = function (gl)
     gl.uniform1f(shaderProgram.uSpotLightLocation[i].cutoffAngle, glMatrix.glMatrix.toRadian(45));
     gl.uniform1f(shaderProgram.uSpotLightLocation[i].strength, 3);
   }
+
+  //fill headlights uniforms
+  gl.uniform1i(shaderProgram.uHeadlightTexture, 2);
 
   gl.useProgram(null);
 

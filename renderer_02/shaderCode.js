@@ -2,22 +2,31 @@ vertexShaderSource = function()
 {
 return `
 uniform mat4 uModelMatrix;
-uniform mat4 uViewMatrix;               
-uniform mat4 uProjectionMatrix;              
+uniform mat4 uViewMatrix;
+uniform mat4 uProjectionMatrix;
+uniform mat4 uLeftHeadlightMatrix;
+uniform mat4 uRightHeadlightMatrix;
+
 attribute vec3 aPosition;
 attribute vec2 aUVCoords;
 
 varying vec3 vWorldPos;
 varying vec2 vUVCoords;
 
-void main(void)                                
+varying vec4 vLeftHeadlightPosition;
+varying vec4 vRightHeadlightPosition;
+
+void main(void)
 {
     vUVCoords = vec2(aUVCoords.x, 1.0 - aUVCoords.y);
 
     vec4 worldPos = uModelMatrix * vec4(aPosition, 1.0);
     vWorldPos = worldPos.xyz;
-    gl_Position = uProjectionMatrix * uViewMatrix * worldPos;     
-}                                              
+    gl_Position = uProjectionMatrix * uViewMatrix * worldPos;
+
+    vLeftHeadlightPosition = uLeftHeadlightMatrix * worldPos;
+    vRightHeadlightPosition = uRightHeadlightMatrix * worldPos;
+}
 `;
 
 }
@@ -76,6 +85,10 @@ struct spotLight
 
 varying vec3 vWorldPos;
 varying vec2 vUVCoords;
+
+uniform sampler2D uHeadlightTexture;
+varying vec4 vLeftHeadlightPosition;
+varying vec4 vRightHeadlightPosition;
 
 const int pointLightCount = 0;
 const int spotLightCount = 12;
@@ -187,6 +200,18 @@ vec4 computeSpotColor(vec3 currNormal, vec3 lightPosition, vec3 spotDirection, v
     return attenuatedColor * attenuation;
 }
 
+vec4 computeHeadlightColor(vec2 headlightUV, float distance)
+{
+    if(  distance > 0.0 && all(greaterThanEqual( headlightUV, vec2(0.0, 0.0) )) && all(lessThanEqual( headlightUV, vec2(1.0, 1.0) ))  )
+    {
+        return texture2D(uHeadlightTexture, headlightUV);
+    }
+    else
+    {
+        return vec4(0.0, 0.0, 0.0, 0.0);
+    }
+}
+
 void main(void)                                
 {                             
     vec3 currNormal = computeNormal(uMaterial);
@@ -209,7 +234,13 @@ void main(void)
             currDiffuseColor, uMaterial.specularColor);
     }
 
-    vec4 outColor = clamp( ambientColor + lightColorSum + emissiveColor, 0.0, 1.0 );
+    vec2 leftHeadlightUV = (vLeftHeadlightPosition.xy / vLeftHeadlightPosition.w) * 0.5 + 0.5;
+    vec2 rightHeadlightUV = (vRightHeadlightPosition.xy / vRightHeadlightPosition.w) * 0.5 + 0.5;
+    vec4 leftHeadlightColor = computeHeadlightColor(leftHeadlightUV.xy, vLeftHeadlightPosition.w);
+    vec4 rightHeadlightColor = computeHeadlightColor(rightHeadlightUV.xy, vRightHeadlightPosition.w);
+    vec4 headlightColor = leftHeadlightColor * 0.5 + rightHeadlightColor * 0.5;
+
+    vec4 outColor = clamp( ambientColor + lightColorSum + emissiveColor + currDiffuseColor * headlightColor * headlightColor.a, 0.0, 1.0 );
     gl_FragColor = outColor;
 }
 `;

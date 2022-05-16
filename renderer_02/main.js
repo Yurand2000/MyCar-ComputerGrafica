@@ -105,25 +105,28 @@ Renderer.drawCar = function (gl, stack)
   stack.pop();
 };
 
-ChaseCamera = function()
+ChaseCamera = function(center, cam_position)
 {
-  this.center = [0,0,0];
-  this.camera_pos = [0,0,0];
+  this.center = center;
+  this.camera_pos = cam_position;
+
+  this.world_center = [0,0,0];
+  this.world_camera_pos = [0,0,0];
   
   this.update = function(car_position, car_direction, car_frame)
   {
-    glMatrix.vec3.transformMat4(this.center, [0, 1.5, 0], car_frame);
-    glMatrix.vec3.transformMat4(this.camera_pos, [0, 4, 10], car_frame);
+    glMatrix.vec3.transformMat4(this.world_center, this.center, car_frame);
+    glMatrix.vec3.transformMat4(this.world_camera_pos, this.camera_pos, car_frame);
   }
 
   this.view_direction = function()
   {
-    return glMatrix.vec3.normalize( glMatrix.vec3.create(), glMatrix.vec3.sub(glMatrix.vec3.create(), this.camera_pos, this.center) );
+    return glMatrix.vec3.normalize( glMatrix.vec3.create(), glMatrix.vec3.sub(glMatrix.vec3.create(), this.world_camera_pos, this.world_center) );
   }
 
   this.matrix = function()
   {
-    return glMatrix.mat4.lookAt(glMatrix.mat4.create(), this.camera_pos, this.center, [0, 1, 0]);	
+    return glMatrix.mat4.lookAt(glMatrix.mat4.create(), this.world_camera_pos, this.world_center, [0, 1, 0]);	
   }
 }
 
@@ -155,7 +158,7 @@ update_camera = function(camera_name)
 /* dictionary of cameras that will be used */
 Renderer.cameras = {};
 Renderer.cameras["FollowFromUp"] = new FollowFromUpCamera();
-Renderer.cameras["Chase"] = new ChaseCamera();
+Renderer.cameras["Chase"] = new ChaseCamera([0, 1.5, 0], [0, 4, 10]);
 Renderer.currentCamera = "Chase";
 
 Renderer.loadLights = function(gl)
@@ -167,6 +170,10 @@ Renderer.loadLights = function(gl)
     gl.uniform3fv(this.uniformShader.uSpotLightLocation[i].position, lampPosition);
   }
 }
+
+Renderer.headlights = {};
+Renderer.headlights["left"] = new ChaseCamera([-0.7, 0.35, -4], [-0.55, 0.45, -2]);
+Renderer.headlights["right"] = new ChaseCamera([0.7, 0.35, -4], [0.55, 0.45, -2]);
 
 /*
 create the buffers for an object as specified in common/shapes/triangle.js
@@ -301,6 +308,30 @@ Renderer.drawScene = function (gl) {
   gl.uniform3fv(this.uniformShader.uViewDirectionLocation, view);
   gl.uniformMatrix4fv(this.uniformShader.uViewMatrixLocation, false, invV);
   
+  // load the car headlights matrices
+  var headlightProjMatrix = glMatrix.mat4.perspective( glMatrix.mat4.create(), 0.35, 1, 1, 500 );
+
+  Renderer.headlights["left"].update(this.car.position, this.car.direction, this.car.frame);
+  gl.uniformMatrix4fv(this.uniformShader.uLeftHeadlightMatrix, false,
+    glMatrix.mat4.mul(
+      glMatrix.mat4.create(),
+      headlightProjMatrix,
+      Renderer.headlights["left"].matrix()
+    )
+  );
+  
+  Renderer.headlights["right"].update(this.car.position, this.car.direction, this.car.frame);
+  gl.uniformMatrix4fv(this.uniformShader.uRightHeadlightMatrix, false,
+    glMatrix.mat4.mul(
+      glMatrix.mat4.create(),
+      headlightProjMatrix,
+      Renderer.headlights["right"].matrix()
+    )
+  );
+  
+  gl.activeTexture(gl.TEXTURE2);
+  gl.bindTexture(gl.TEXTURE_2D, Renderer.headlight_texture);
+
   // initialize the stack with the identity
   stack.loadIdentity();
 
@@ -371,6 +402,9 @@ Renderer.setupAndStart = function () {
 	var GLSL_version = Renderer.gl.getParameter(Renderer.gl.SHADING_LANGUAGE_VERSION)
 	log("glsl  version: "+GLSL_version);
 
+  /* setup webgl */
+  Renderer.gl.enable(Renderer.gl.CULL_FACE);
+
   /* create the matrix stack */
 	Renderer.stack = new MatrixStack();
 
@@ -393,6 +427,7 @@ Renderer.setupAndStart = function () {
   Renderer.facade3_texture = load_texture(Renderer.gl, "../common/textures/facade3.jpg", 0);
   Renderer.roof_texture = load_texture(Renderer.gl, "../common/textures/roof.jpg", 0);
   Renderer.grass_tile_texture = load_texture(Renderer.gl, "../common/textures/grass_tile.png", 0);
+  Renderer.headlight_texture = load_texture(Renderer.gl, "../common/textures/headlight.png", 2);
 
   /*
   add listeners for the mouse / keyboard events
