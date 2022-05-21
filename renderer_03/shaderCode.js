@@ -6,8 +6,7 @@ uniform mat4 uViewMatrix;
 uniform mat4 uProjectionMatrix;
 uniform mat4 uLeftHeadlightMatrix;
 uniform mat4 uRightHeadlightMatrix;
-uniform mat4 uShadowMapViewMatrix;
-uniform mat4 uShadowMapProjectionMatrix;
+uniform mat4 uShadowMapMatrix;
 
 attribute vec3 aPosition;
 attribute vec2 aUVCoords;
@@ -27,10 +26,10 @@ void main(void)
     vWorldPos = uModelMatrix * vec4(aPosition, 1.0);
     gl_Position = uProjectionMatrix * uViewMatrix * vWorldPos;
 
-    vLeftHeadlightPosition = uLeftHeadlightMatrix * vWorldPos;
-    vRightHeadlightPosition = uRightHeadlightMatrix * vWorldPos;
+    vLeftHeadlightPosition = (uLeftHeadlightMatrix * vWorldPos);
+    vRightHeadlightPosition = (uRightHeadlightMatrix * vWorldPos);
 
-    vShadowMapPosition = (uShadowMapProjectionMatrix * uShadowMapViewMatrix * vWorldPos) * 0.5 + 0.5;
+    vShadowMapPosition = (uShadowMapMatrix * vWorldPos) * 0.5 + 0.5;
 }
 `;
 
@@ -93,7 +92,9 @@ varying vec2 vUVCoords;
 
 uniform sampler2D uHeadlightTexture;
 varying vec4 vLeftHeadlightPosition;
+uniform sampler2D uLeftHeadlightShadowMapTexture;
 varying vec4 vRightHeadlightPosition;
+uniform sampler2D uRightHeadlightShadowMapTexture;
 
 uniform sampler2D uShadowMapTexture;
 varying vec4 vShadowMapPosition;
@@ -220,25 +221,25 @@ vec4 computeHeadlightColor(vec2 headlightUV, float distance)
     }
 }
 
-bool isInLight(float current_depth, vec2 shadowmap_uv)
+bool isInLight(sampler2D shadowmap, float current_depth, vec2 shadowmap_uv)
 {
-    float shadowmap_z = texture2D(uShadowMapTexture, shadowmap_uv).r;
+    float shadowmap_z = texture2D(shadowmap, shadowmap_uv).r;
     if( current_depth -0.001 < shadowmap_z)
         return true;
     else
         return false;
 }
 
-float inLight(float current_depth, vec2 shadowmap_uv)
+float inLight(sampler2D shadowmap, float current_depth, vec2 shadowmap_uv)
 {
     float inLight = 0.0;
-    if(  isInLight( current_depth, shadowmap_uv )  )
+    if(  isInLight( shadowmap, current_depth, shadowmap_uv )  )
         inLight = inLight + 1.0;
     for(float dy = -0.0001; dy <= 0.0001; dy += 0.00004)
     {
         for(float dx = -0.0001; dx <= 0.0001; dx += 0.00004)
         {
-            if(  isInLight( current_depth, shadowmap_uv + vec2(dx, dy) )  )
+            if(  isInLight( shadowmap, current_depth, shadowmap_uv + vec2(dx, dy) )  )
                 inLight = inLight + 1.0;
         }
     }
@@ -252,9 +253,9 @@ void main(void)
     vec4 ambientColor = vec4(uAmbientColor.xyz * currDiffuseColor.xyz, 1.0);
     vec4 emissiveColor = vec4(uMaterial.emissiveColor.xyz, 1.0);
     
-    vec2 shadowMapUV = vShadowMapPosition.xy; 
-    float shadowMapDepth = vShadowMapPosition.z;
-    vec4 lightColorSum = computeSunColor(currNormal, uSunLight.direction, uSunLight.color, uSunLight.intensity, currDiffuseColor, uMaterial.specularColor) * inLight(shadowMapDepth, shadowMapUV);
+    vec2 shadowMapUV = vShadowMapPosition.xy / vShadowMapPosition.w; 
+    float shadowMapDepth = vShadowMapPosition.z / vShadowMapPosition.w;
+    vec4 lightColorSum = computeSunColor(currNormal, uSunLight.direction, uSunLight.color, uSunLight.intensity, currDiffuseColor, uMaterial.specularColor) * inLight(uShadowMapTexture, shadowMapDepth, shadowMapUV);
 
     /*for(int i = 0; i < pointLightCount; i++)
     {
@@ -270,9 +271,11 @@ void main(void)
     }
 
     vec2 leftHeadlightUV = (vLeftHeadlightPosition.xy / vLeftHeadlightPosition.w) * 0.5 + 0.5;
+    float leftHeadlightDepth = (vLeftHeadlightPosition.z / vLeftHeadlightPosition.w) * 0.5 + 0.5;
     vec2 rightHeadlightUV = (vRightHeadlightPosition.xy / vRightHeadlightPosition.w) * 0.5 + 0.5;
-    vec4 leftHeadlightColor = computeHeadlightColor(leftHeadlightUV.xy, vLeftHeadlightPosition.w);
-    vec4 rightHeadlightColor = computeHeadlightColor(rightHeadlightUV.xy, vRightHeadlightPosition.w);
+    float rightHeadlightDepth = (vRightHeadlightPosition.z / vRightHeadlightPosition.w) * 0.5 + 0.5;
+    vec4 leftHeadlightColor = computeHeadlightColor(leftHeadlightUV, vLeftHeadlightPosition.w) * inLight(uLeftHeadlightShadowMapTexture, leftHeadlightDepth, leftHeadlightUV);
+    vec4 rightHeadlightColor = computeHeadlightColor(rightHeadlightUV, vRightHeadlightPosition.w) * inLight(uRightHeadlightShadowMapTexture, rightHeadlightDepth, rightHeadlightUV);
     vec4 headlightColor = leftHeadlightColor * 0.5 + rightHeadlightColor * 0.5;
     
     vec4 outColor = clamp( ambientColor + lightColorSum + emissiveColor + currDiffuseColor * headlightColor * headlightColor.a, 0.0, 1.0 );

@@ -90,12 +90,13 @@ uniformShader = function (gl)
   //car headlights uniforms
   shaderProgram.uHeadlightTextureLocation = gl.getUniformLocation(shaderProgram, "uHeadlightTexture");
   shaderProgram.uLeftHeadlightMatrixLocation = gl.getUniformLocation(shaderProgram, "uLeftHeadlightMatrix");
+  shaderProgram.uLeftHeadlightShadowMapTextureLocation = gl.getUniformLocation(shaderProgram, "uLeftHeadlightShadowMapTexture");
   shaderProgram.uRightHeadlightMatrixLocation = gl.getUniformLocation(shaderProgram, "uRightHeadlightMatrix");
+  shaderProgram.uRightHeadlightShadowMapTextureLocation = gl.getUniformLocation(shaderProgram, "uRightHeadlightShadowMapTexture");
 
   //shadowmap uniforms
   shaderProgram.uShadowMapTextureLocation = gl.getUniformLocation(shaderProgram, "uShadowMapTexture");
-  shaderProgram.uShadowMapProjectionMatrixLocation = gl.getUniformLocation(shaderProgram, "uShadowMapProjectionMatrix");
-  shaderProgram.uShadowMapViewMatrixLocation = gl.getUniformLocation(shaderProgram, "uShadowMapViewMatrix");
+  shaderProgram.uShadowMapMatrixLocation = gl.getUniformLocation(shaderProgram, "uShadowMapMatrix");
 
   //set defaults
   gl.useProgram(shaderProgram);
@@ -137,6 +138,8 @@ uniformShader = function (gl)
 
   //fill headlights uniforms
   gl.uniform1i(shaderProgram.uHeadlightTextureLocation, 2);
+  gl.uniform1i(shaderProgram.uLeftHeadlightShadowMapTextureLocation, 4);
+  gl.uniform1i(shaderProgram.uRightHeadlightShadowMapTextureLocation, 5);
 
   //fill shadowmap uniforms
   gl.uniform1i(shaderProgram.uShadowMapTextureLocation, 3);

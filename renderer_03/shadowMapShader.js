@@ -34,8 +34,7 @@ shadowMapShader = function (gl)
 
   //vertex shader uniforms
   shaderProgram.uModelMatrixLocation = gl.getUniformLocation(shaderProgram, "uModelMatrix");
-  shaderProgram.uViewMatrixLocation = gl.getUniformLocation(shaderProgram, "uViewMatrix");
-  shaderProgram.uProjectionMatrixLocation = gl.getUniformLocation(shaderProgram, "uProjectionMatrix");
+  shaderProgram.uMatrixLocation = gl.getUniformLocation(shaderProgram, "uMatrix");
 
   return shaderProgram;
 };

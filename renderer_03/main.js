@@ -74,22 +74,21 @@ Renderer.startDrawScene = function ()
   gl.uniformMatrix4fv(shader.uViewMatrixLocation, false, invV);
   
   // load the car headlights matrices and textures
-  var headlightProjMatrix = glMatrix.mat4.perspective( glMatrix.mat4.create(), 0.35, 1, 1, 500 );
-
   Renderer.headlights["left"].update(this.car.position, this.car.direction, this.car.frame);
+  Renderer.headlights["right"].update(this.car.position, this.car.direction, this.car.frame);
+
   gl.uniformMatrix4fv(shader.uLeftHeadlightMatrixLocation, false,
     glMatrix.mat4.mul(
       glMatrix.mat4.create(),
-      headlightProjMatrix,
+      Renderer.headlightProjectionMatrix,
       Renderer.headlights["left"].matrix()
     )
   );
   
-  Renderer.headlights["right"].update(this.car.position, this.car.direction, this.car.frame);
   gl.uniformMatrix4fv(shader.uRightHeadlightMatrixLocation, false,
     glMatrix.mat4.mul(
       glMatrix.mat4.create(),
-      headlightProjMatrix,
+      Renderer.headlightProjectionMatrix,
       Renderer.headlights["right"].matrix()
     )
   );
@@ -195,22 +194,53 @@ Renderer.display = function()
   Renderer.currentShader = Renderer.shadowMapShader;
   Renderer.useColor = false;
 
+  gl.useProgram(Renderer.shadowMapShader);
+  
+  /* create shadowmap */
   gl.bindFramebuffer(gl.FRAMEBUFFER, Renderer.shadowMapFramebuffer);
   gl.clear(gl.DEPTH_BUFFER_BIT);
 
   gl.viewport(0, 0, Renderer.shadowMapResolution[0], Renderer.shadowMapResolution[1]);
-  gl.useProgram(Renderer.shadowMapShader);
-
-  let shadowMapProjectionMatrix = glMatrix.mat4.ortho(glMatrix.mat4.create(), -150, 150, -120, 120, 30, 350);
-  let shadowMapViewMatrix = glMatrix.mat4.lookAt(
-    glMatrix.mat4.create(),
-    glMatrix.vec3.scale(glMatrix.vec3.create(), Game.scene.weather.sunLightDirection, 100),
-    [0, 0, 0],
-    [0, 1, 0]
+  
+  gl.uniformMatrix4fv(Renderer.shadowMapShader.uMatrixLocation, false,
+    glMatrix.mat4.mul(
+      glMatrix.mat4.create(),
+      Renderer.shadowMapProjectionMatrix,
+      Renderer.shadowMapViewMatrix
+    )
   );
+  
+  Renderer.drawScene();
 
-  gl.uniformMatrix4fv(Renderer.shadowMapShader.uProjectionMatrixLocation, false, shadowMapProjectionMatrix);
-  gl.uniformMatrix4fv(Renderer.shadowMapShader.uViewMatrixLocation, false, shadowMapViewMatrix);
+  /* left headlight shadowmap */
+  gl.bindFramebuffer(gl.FRAMEBUFFER, Renderer.leftHeadlightShadowMapFramebuffer);
+  gl.clear(gl.DEPTH_BUFFER_BIT);
+
+  gl.viewport(0, 0, Renderer.headlightShadowMapResolution[0], Renderer.headlightShadowMapResolution[1]);
+  
+  gl.uniformMatrix4fv(Renderer.shadowMapShader.uMatrixLocation, false,
+    glMatrix.mat4.mul(
+      glMatrix.mat4.create(),
+      Renderer.headlightProjectionMatrix,
+      Renderer.headlights["left"].matrix()
+    )
+  );
+  
+  Renderer.drawScene();
+
+  /* right headlight shadowmap */
+  gl.bindFramebuffer(gl.FRAMEBUFFER, Renderer.rightHeadlightShadowMapFramebuffer);
+  gl.clear(gl.DEPTH_BUFFER_BIT);
+
+  gl.viewport(0, 0, Renderer.headlightShadowMapResolution[0], Renderer.headlightShadowMapResolution[1]);
+  
+  gl.uniformMatrix4fv(Renderer.shadowMapShader.uMatrixLocation, false,
+    glMatrix.mat4.mul(
+      glMatrix.mat4.create(),
+      Renderer.headlightProjectionMatrix,
+      Renderer.headlights["right"].matrix()
+    )
+  );
   
   Renderer.drawScene();
 
@@ -224,9 +254,34 @@ Renderer.display = function()
 
   gl.activeTexture(gl.TEXTURE3);
   gl.bindTexture(gl.TEXTURE_2D, Renderer.shadowMapFramebuffer.depth_texture);
+  gl.uniformMatrix4fv(Renderer.uniformShader.uShadowMapMatrixLocation, false,
+    glMatrix.mat4.mul(
+      glMatrix.mat4.create(),
+      Renderer.shadowMapProjectionMatrix,
+      Renderer.shadowMapViewMatrix
+    )
+  );
 
-  gl.uniformMatrix4fv(Renderer.uniformShader.uShadowMapProjectionMatrixLocation, false, shadowMapProjectionMatrix);
-  gl.uniformMatrix4fv(Renderer.uniformShader.uShadowMapViewMatrixLocation, false, shadowMapViewMatrix);
+  gl.activeTexture(gl.TEXTURE4);
+  gl.bindTexture(gl.TEXTURE_2D, Renderer.leftHeadlightShadowMapFramebuffer.depth_texture);
+  gl.uniformMatrix4fv(Renderer.uniformShader.uLeftHeadlightMatrixLocation, false,
+    glMatrix.mat4.mul(
+      glMatrix.mat4.create(),
+      Renderer.headlightProjectionMatrix,
+      Renderer.headlights["left"].matrix()
+    )
+  );
+
+  gl.activeTexture(gl.TEXTURE5);
+  gl.bindTexture(gl.TEXTURE_2D, Renderer.rightHeadlightShadowMapFramebuffer.depth_texture);
+  gl.uniformMatrix4fv(Renderer.uniformShader.uRightHeadlightMatrixLocation, false,
+    glMatrix.mat4.mul(
+      glMatrix.mat4.create(),
+      Renderer.headlightProjectionMatrix,
+      Renderer.headlights["right"].matrix()
+    )
+  );
+
 
   Renderer.drawScene();
   Renderer.endDrawScene();
@@ -268,18 +323,33 @@ Renderer.setupAndStart = function ()
   /* initialize objects to be rendered */
   Renderer.initializeObjects();
 
-  /* create the shaders */
+  /* create the shader */
   Renderer.uniformShader = new uniformShader(Renderer.gl);
+  Renderer.currentShader = Renderer.uniformShader;
   Renderer.loadLights();
+
+  /* setup headlights for the car and shadowmap framebuffers */
+  Renderer.headlights = {};
+  Renderer.headlightProjectionMatrix = glMatrix.mat4.perspective( glMatrix.mat4.create(), 0.35, 1, 1, 500 );
+  Renderer.headlights["left"] = new ChaseCamera([-0.7, 0.35, -4], [-0.55, 0.45, -2]);
+  Renderer.headlights["right"] = new ChaseCamera([0.7, 0.35, -4], [0.55, 0.45, -2]);
+
+  Renderer.headlightShadowMapResolution = [2048, 2048];
+  Renderer.leftHeadlightShadowMapFramebuffer = makeFramebuffer(Renderer.gl, Renderer.headlightShadowMapResolution);
+  Renderer.rightHeadlightShadowMapFramebuffer = makeFramebuffer(Renderer.gl, Renderer.headlightShadowMapResolution);
+
+  /* setup shadowmap shader and matrices */
   Renderer.shadowMapShader = new shadowMapShader(Renderer.gl);
   Renderer.shadowMapResolution = [4096, 4096];
   Renderer.shadowMapFramebuffer = makeFramebuffer(Renderer.gl, Renderer.shadowMapResolution);
-  Renderer.currentShader = Renderer.uniformShader;
 
-  /* load headlights for the car */
-  Renderer.headlights = {};
-  Renderer.headlights["left"] = new ChaseCamera([-0.7, 0.35, -4], [-0.55, 0.45, -2]);
-  Renderer.headlights["right"] = new ChaseCamera([0.7, 0.35, -4], [0.55, 0.45, -2]);
+  Renderer.shadowMapProjectionMatrix = glMatrix.mat4.ortho(glMatrix.mat4.create(), -150, 150, -120, 120, 30, 350);
+  Renderer.shadowMapViewMatrix = glMatrix.mat4.lookAt(
+    glMatrix.mat4.create(),
+    glMatrix.vec3.scale(glMatrix.vec3.create(), Game.scene.weather.sunLightDirection, 100),
+    [0, 0, 0],
+    [0, 1, 0]
+  );
 
   /* load textures */
   Renderer.ground_texture        = load_texture(gl, "../common/textures/street4.png", 0);
