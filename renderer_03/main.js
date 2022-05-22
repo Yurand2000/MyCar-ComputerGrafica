@@ -59,17 +59,38 @@ Renderer.startDrawScene = function ()
 
   gl.viewport(0, 0, width, height);
 
+  //update cameras and build matrices
+  let proj_matrix = glMatrix.mat4.perspective(glMatrix.mat4.create(),3.14 / 4, ratio, 1, 500);
+  Renderer.cameras[Renderer.currentCamera].update(this.car.position, this.car.direction, this.car.frame);
+  var invV = Renderer.cameras[Renderer.currentCamera].matrix();
+  var view = Renderer.cameras[Renderer.currentCamera].view_direction();
+
   // Clear the framebuffer
   gl.clearColor(0.34, 0.5, 0.74, 1.0);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+  //draw cubemap
+  gl.useProgram(Renderer.skyboxShader);
+  gl.depthMask(false);
+  gl.cullFace(gl.FRONT);
+
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_CUBE_MAP, Renderer.skybox_texture);
+
+  gl.uniformMatrix4fv(Renderer.skyboxShader.uProjectionMatrixLocation, false, proj_matrix);
+  gl.uniformMatrix4fv(Renderer.skyboxShader.uViewMatrixLocation, false, invV);
+
+  drawObject(Renderer.skyboxCube, [], Renderer.gl, Renderer.skyboxShader, false);
+
+  gl.cullFace(gl.BACK);
+  gl.useProgram(null);
+
+  //start draw scene
+	gl.depthMask(true);
   gl.useProgram(shader);
 
-  gl.uniformMatrix4fv(shader.uProjectionMatrixLocation, false, glMatrix.mat4.perspective(glMatrix.mat4.create(),3.14 / 4, ratio, 1, 500));
+  gl.uniformMatrix4fv(shader.uProjectionMatrixLocation, false, proj_matrix);
 
-  Renderer.cameras[Renderer.currentCamera].update(this.car.position, this.car.direction, this.car.frame);
-  var invV = Renderer.cameras[Renderer.currentCamera].matrix();
-  var view = Renderer.cameras[Renderer.currentCamera].view_direction();
   gl.uniform3fv(shader.uViewDirectionLocation, view);
   gl.uniformMatrix4fv(shader.uViewMatrixLocation, false, invV);
   
@@ -316,7 +337,7 @@ Renderer.setupAndStart = function ()
   Renderer.cameras["FollowFromUp"] = new FollowFromUpCamera();
   Renderer.cameras["Chase"] = new ChaseCamera([0, 1.5, 0], [0, 4, 10]);
   Renderer.cameras["Relative"] = new ControllableChaseCamera([0, 1.5, 0], [0, 4, 10]);
-  Renderer.currentCamera = "Chase";
+  Renderer.currentCamera = "Relative";
 
   /* create the matrix stack */
 	Renderer.stack = new MatrixStack();
@@ -328,6 +349,11 @@ Renderer.setupAndStart = function ()
   Renderer.uniformShader = new uniformShader(Renderer.gl);
   Renderer.currentShader = Renderer.uniformShader;
   Renderer.loadLights();
+
+  /* create the skybox shader */
+  Renderer.skyboxShader = new skyboxShader(Renderer.gl);
+  Renderer.skyboxCube = new Cube();
+  createObjectBuffers(Renderer.gl, Renderer.skyboxCube);
 
   /* setup headlights for the car and shadowmap framebuffers */
   Renderer.headlights = {};
@@ -361,6 +387,14 @@ Renderer.setupAndStart = function ()
   Renderer.roof_texture          = load_texture(gl, "../common/textures/roof.jpg", 0);
   Renderer.grass_tile_texture    = load_texture(gl, "../common/textures/grass_tile.png", 0);
   Renderer.headlight_texture     = load_texture(gl, "../common/textures/headlight.png", 2);
+  Renderer.skybox_texture        = make_cubemap(gl,
+    "../common/textures/cubemap/posx.jpg",
+    "../common/textures/cubemap/negx.jpg",
+    "../common/textures/cubemap/negy.jpg",
+    "../common/textures/cubemap/posy.jpg",
+    "../common/textures/cubemap/posz.jpg",
+    "../common/textures/cubemap/negz.jpg",
+  2);
 
   /*
   add listeners for the mouse / keyboard events
