@@ -315,6 +315,7 @@ Renderer.setupAndStart = function ()
   Renderer.cameras = {};
   Renderer.cameras["FollowFromUp"] = new FollowFromUpCamera();
   Renderer.cameras["Chase"] = new ChaseCamera([0, 1.5, 0], [0, 4, 10]);
+  Renderer.cameras["Relative"] = new ControllableChaseCamera([0, 1.5, 0], [0, 4, 10]);
   Renderer.currentCamera = "Chase";
 
   /* create the matrix stack */
@@ -364,6 +365,10 @@ Renderer.setupAndStart = function ()
   /*
   add listeners for the mouse / keyboard events
   */
+  Renderer.mouse = {};
+  Renderer.keys = {};
+  Renderer.canvas.addEventListener('mousedown', on_mouseDown, false);
+  Renderer.canvas.addEventListener('mouseup', on_mouseUp, false);
   Renderer.canvas.addEventListener('mousemove', on_mouseMove, false);
   Renderer.canvas.addEventListener('keydown', on_keydown, false);
   Renderer.canvas.addEventListener('keyup', on_keyup, false);
@@ -371,19 +376,61 @@ Renderer.setupAndStart = function ()
   Renderer.display();
 }
 
+on_mouseUp = function(e)
+{
+  Renderer.mouse[e.button] = false;
+}
+  
+on_mouseDown = function(e)
+{
+  Renderer.mouse[e.button] = true;
+}
+
 on_mouseMove = function(e)
 {
-
+  let scale = 0.5;
+  if(Renderer.mouse[0] && Renderer.currentCamera == "Relative")
+  {
+    Renderer.cameras["Relative"].add_rotation(-e.movementX * scale, -e.movementY * scale);
+  }
 }
 
 on_keyup = function(e)
 {
+	Renderer.keys[e.key] = false;
 	Renderer.car.control_keys[e.key] = false;
 }
 
 on_keydown = function(e)
 {
+	Renderer.keys[e.key] = true;
 	Renderer.car.control_keys[e.key] = true;
+
+  /* reset camera */
+  if(e.key == "Home" && Renderer.currentCamera == "Relative")
+  {
+    Renderer.cameras["Relative"].reset_camera();
+  }
+
+  /* move camera */
+  if(Renderer.currentCamera == "Relative")
+  {
+    let current_offset = [0, 0, 0];
+    if(e.key == "w")
+      current_offset[2] -= 1;
+    if(e.key == "s")
+      current_offset[2] += 1;
+    if(e.key == "a")
+      current_offset[0] -= 1;
+    if(e.key == "d")
+      current_offset[0] += 1;
+    if(e.key == "q")
+      current_offset[1] += 1;
+    if(e.key == "e")
+      current_offset[1] -= 1;
+
+    Renderer.cameras["Relative"].add_offset(current_offset);
+  }
 }
 
 update_camera = function(camera_name)
