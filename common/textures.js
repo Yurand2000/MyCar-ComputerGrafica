@@ -1,5 +1,10 @@
-load_texture = function(gl, src, texture_num)
+load_texture = function(gl, src, texture_num, repeat)
 {
+    if(repeat === undefined || repeat)
+        repeat = gl.REPEAT;
+    else
+        repeat = gl.CLAMP_TO_EDGE;
+
     var texture = gl.createTexture();
 
     load_empty_texture_bind(gl, texture, gl.TEXTURE_2D, [1, 1], texture_num, [120, 120, 255, 255]);
@@ -7,24 +12,29 @@ load_texture = function(gl, src, texture_num)
         {
             min_filter : gl.LINEAR_MIPMAP_LINEAR,
             mag_filter : gl.LINEAR,
-            wrap_s : gl.REPEAT,
-            wrap_t : gl.REPEAT
+            wrap_s : repeat,
+            wrap_t : repeat
         }
     );
 
     return texture;
 }
 
-make_empty_texture = function(gl, size, texture_num, depth)
+make_empty_texture = function(gl, size, texture_num, repeat)
 {
+    if(repeat === undefined || repeat)
+        repeat = gl.REPEAT;
+    else
+        repeat = gl.CLAMP_TO_EDGE;
+
     var texture = gl.createTexture();
 
     load_empty_texture_bind(gl, texture, gl.TEXTURE_2D, size, texture_num,
         {
             min_filter : gl.LINEAR,
             mag_filter : gl.LINEAR,
-            wrap_s : gl.REPEAT,
-            wrap_t : gl.REPEAT
+            wrap_s : repeat,
+            wrap_t : repeat
         }
     );
 

@@ -73,7 +73,7 @@ update_camera = function(camera_name)
 /* dictionary of cameras that will be used */
 Renderer.cameras = {};
 Renderer.cameras["FollowFromUp"] = new FollowFromUpCamera();
-Renderer.cameras["Chase"] = new ChaseCamera();
+Renderer.cameras["Chase"] = new ChaseCamera([0, 1.5, 0], [0, 4, 10]);
 Renderer.currentCamera = "Chase";
 
 /*

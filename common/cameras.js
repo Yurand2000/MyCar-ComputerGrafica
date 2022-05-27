@@ -39,7 +39,7 @@ FollowFromUpCamera = function()
 
   this.matrix = function()
   {
-    return glMatrix.mat4.lookAt(glMatrix.mat4.create(),[ this.pos[0],50, this.pos[2]], this.pos,[0, 0, -1]);	
+    return glMatrix.mat4.lookAt( glMatrix.mat4.create(), [ this.pos[0], 50.0, this.pos[2] ], this.pos, [0, 0, -1] );	
   }
 }
 

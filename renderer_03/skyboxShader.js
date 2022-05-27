@@ -1,50 +1,61 @@
 skyboxShader = function (gl)
 {
-  // create the vertex shader
-  var vertexShader = gl.createShader(gl.VERTEX_SHADER);
-  gl.shaderSource(vertexShader, skyboxVertexShaderSource());
-  gl.compileShader(vertexShader);
+    let attributes =
+    [
+        { location: "aPositionIndex", attribute: "aPosition", index: 0 },
+        { location: "aUVCoordsIndex", attribute: "aUVCoords", index: 1 }
+    ];
 
-  // create the fragment shader
-  var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-  gl.shaderSource(fragmentShader, skyboxFragmentShaderSource());
-  gl.compileShader(fragmentShader);
+    let uniforms =
+    [
+        { location: "uViewMatrixLocation", uniform: "uViewMatrix" },
+        { location: "uProjectionMatrixLocation", uniform: "uProjectionMatrix" },
+        { location: "uSkyboxTextureLocation", uniform: "uSkyboxTexture" }
+    ];
 
-  // Create the shader program
-  var aPositionIndex = 0;
-  var aUVCoordsIndex = 1;
-  var shaderProgram = gl.createProgram();
-  gl.attachShader(shaderProgram, vertexShader);
-  gl.attachShader(shaderProgram, fragmentShader);
-  gl.bindAttribLocation(shaderProgram, aPositionIndex, "aPosition");
-  gl.bindAttribLocation(shaderProgram, aUVCoordsIndex, "aUVCoords");
-  gl.linkProgram(shaderProgram);
+    let shaderProgram = makeShader(gl, skyboxVertexShaderSource(), skyboxFragmentShaderSource(), attributes, uniforms);
 
-  // If creating the shader program failed, alert
-  if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-    var str = "Unable to initialize the skybox shader program.\n\n";
-    str += "VS:\n" + gl.getShaderInfoLog(vertexShader) + "\n\n";
-    str += "FS:\n" + gl.getShaderInfoLog(fragmentShader) + "\n\n";
-    str += "PROG:\n" + gl.getProgramInfoLog(shaderProgram);
-    alert(str);
-  }
+    //fill uniforms
+    gl.useProgram(shaderProgram);
 
-  shaderProgram.aPositionIndex = aPositionIndex;
-  shaderProgram.aUVCoordsIndex = aUVCoordsIndex;
+    gl.uniform1i(shaderProgram.uSkyboxTextureLocation, 0);
 
-  //vertex shader uniforms
-  shaderProgram.uViewMatrixLocation = gl.getUniformLocation(shaderProgram, "uViewMatrix");
-  shaderProgram.uProjectionMatrixLocation = gl.getUniformLocation(shaderProgram, "uProjectionMatrix");
+    gl.useProgram(null);
 
-  //fragment shader uniforms
-  shaderProgram.uSkyboxTextureLocation = gl.getUniformLocation(shaderProgram, "uSkyboxTexture");
-
-  //fill uniforms
-  gl.useProgram(shaderProgram);
-
-  gl.uniform1i(shaderProgram.uSkyboxTextureLocation, 0);
-
-  gl.useProgram(null);
-
-  return shaderProgram;
+    return shaderProgram;
 };
+
+skyboxVertexShaderSource = function()
+{
+return `
+uniform mat4 uViewMatrix;
+uniform mat4 uProjectionMatrix;
+
+attribute vec3 aPosition;
+attribute vec2 aUVCoords;
+
+varying vec3 vPosition;
+
+void main(void)
+{
+    vPosition = vec3(aPosition.x, aPosition.y, aPosition.z);
+    vec4 direction = uViewMatrix * vec4(aPosition * 2.0, 0.0);
+    gl_Position = uProjectionMatrix * vec4(direction.xyz, 1.0);
+}
+`;
+}
+
+skyboxFragmentShaderSource = function()
+{
+return `
+precision highp float;
+uniform samplerCube uSkyboxTexture;
+
+varying vec3 vPosition;
+
+void main(void)                                
+{        
+    gl_FragColor = textureCube( uSkyboxTexture, normalize(-vPosition) );
+}
+`;
+}
