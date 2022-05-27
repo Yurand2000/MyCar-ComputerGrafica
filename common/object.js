@@ -46,6 +46,9 @@ createObjectBuffers = function (gl, obj, texCoords)
 
 drawObject = function (obj, fillColor, gl, shader, use_color)
 {
+  if(use_color === undefined)
+    use_color = true;
+
   gl.bindBuffer(gl.ARRAY_BUFFER, obj.vertexBuffer);
   gl.enableVertexAttribArray(shader.aPositionIndex);
   gl.vertexAttribPointer(shader.aPositionIndex, 3, gl.FLOAT, false, 0, 0);

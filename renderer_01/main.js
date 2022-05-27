@@ -105,48 +105,6 @@ Renderer.drawCar = function (gl, stack)
   stack.pop();
 };
 
-ChaseCamera = function()
-{
-  this.center = [0,0,0];
-  this.camera_pos = [0,0,0];
-  
-  this.update = function(car_position, car_direction, car_frame)
-  {
-    glMatrix.vec3.transformMat4(this.center, [0, 1.5, 0], car_frame);
-    glMatrix.vec3.transformMat4(this.camera_pos, [0, 4, 10], car_frame);
-  }
-
-  this.view_direction = function()
-  {
-    return glMatrix.vec3.normalize( glMatrix.vec3.create(), glMatrix.vec3.sub(glMatrix.vec3.create(), this.camera_pos, this.center) );
-  }
-
-  this.matrix = function()
-  {
-    return glMatrix.mat4.lookAt(glMatrix.mat4.create(), this.camera_pos, this.center, [0, 1, 0]);	
-  }
-}
-
-FollowFromUpCamera = function()
-{
-  this.pos = [0,0,0];
-  
-  this.update = function(car_position, car_direction, car_frame)
-  {
-    this.pos = car_position;
-  }
-  
-  this.view_direction = function()
-  {
-    return [0, -1, 0];
-  }
-
-  this.matrix = function()
-  {
-    return glMatrix.mat4.lookAt(glMatrix.mat4.create(),[ this.pos[0],50, this.pos[2]], this.pos,[0, 0, -1]);	
-  }
-}
-
 update_camera = function(camera_name)
 {
   Renderer.currentCamera = camera_name;
