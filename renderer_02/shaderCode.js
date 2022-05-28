@@ -106,8 +106,16 @@ vec3 computeNormal(material mat)
 {
     if(mat.has_normal_map)   
     {
-        vec3 normal = normalize( texture2D(mat.normalMap, vUVCoords).xyz );
-        return ( uModelMatrix * vec4(normal, 0.0) ).xyz;
+        vec3 x_axis = normalize(  dFdx(vWorldPos.xyz)  );
+        vec3 z_axis = normalize(  dFdy(vWorldPos.xyz)  );
+        vec3 y_axis = normalize(  cross( x_axis, z_axis )  );
+        z_axis = normalize(  cross( x_axis, y_axis )  );
+
+        mat3 matrix;
+        matrix[0] = x_axis;
+        matrix[1] = y_axis;
+        matrix[2] = z_axis;
+        return matrix * ( texture2D(mat.normalMap, vUVCoords * 2.0).xyz * 2.0 - 1.0 ).xzy;
     }
     else
     {

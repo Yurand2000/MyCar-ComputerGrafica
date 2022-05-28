@@ -62,17 +62,12 @@ drawObject = function (obj, fillColor, gl, shader, use_color)
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
   }
 
-  gl.enable(gl.POLYGON_OFFSET_FILL);
-  gl.polygonOffset(1.0, 1.0);
-
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, obj.indexBufferTriangles);
   if(use_color)
   {
     gl.uniform4fv(shader.uMaterialLocation.diffuseColor, fillColor);
   }
   gl.drawElements(gl.TRIANGLES, obj.triangleIndices.length, gl.UNSIGNED_SHORT, 0);
-
-  gl.disable(gl.POLYGON_OFFSET_FILL);
 
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
   gl.disableVertexAttribArray(shader.aPositionIndex);

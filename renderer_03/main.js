@@ -83,7 +83,7 @@ Renderer.startDrawScene = function ()
     gl.useProgram(null);
 
     //start draw scene
-        gl.depthMask(true);
+    gl.depthMask(true);
     gl.useProgram(shader);
 
     gl.uniformMatrix4fv(shader.uProjectionMatrixLocation, false, proj_matrix);
@@ -415,14 +415,14 @@ Renderer.setupAndStart = function ()
     );
 
     /* load textures */
-    Renderer.ground_texture        = load_texture(gl, "../common/textures/street4.png", 0);
+    Renderer.ground_texture        = load_texture(gl, "../common/textures/street5.png", 0);
     Renderer.ground_texture_normal = load_texture(gl, "../common/textures/asphalt_normal_map.jpg", 1);
     Renderer.facade1_texture       = load_texture(gl, "../common/textures/facade1.jpg", 0);
     Renderer.facade2_texture       = load_texture(gl, "../common/textures/facade2.jpg", 0);
     Renderer.facade3_texture       = load_texture(gl, "../common/textures/facade3.jpg", 0);
     Renderer.roof_texture          = load_texture(gl, "../common/textures/roof.jpg", 0);
     Renderer.grass_tile_texture    = load_texture(gl, "../common/textures/grass_tile.png", 0);
-    Renderer.headlight_texture     = load_texture(gl, "../common/textures/headlight.png", 2);
+    Renderer.headlight_texture     = load_texture(gl, "../common/textures/headlight.png", 2, false);
     Renderer.skybox_texture        = make_cubemap(gl,
         "../common/textures/cubemap/posx.jpg",
         "../common/textures/cubemap/negx.jpg",
